@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32"><Configuration>Debug</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{B3715D74-6CCB-4CA9-978F-3266FD4F0F50}</ProjectGuid>
+    <Keyword>MakeFileProj</Keyword>
+    <RootNamespace>IV50Vfw</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration"><ConfigurationType>Makefile</ConfigurationType><PlatformToolset>v143</PlatformToolset></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration"><ConfigurationType>Makefile</ConfigurationType><PlatformToolset>v143</PlatformToolset></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration"><ConfigurationType>Makefile</ConfigurationType><PlatformToolset>v143</PlatformToolset></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration"><ConfigurationType>Makefile</ConfigurationType><PlatformToolset>v143</PlatformToolset></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <NMakeBuildCommandLine>pwsh -NoProfile -File &quot;$(ProjectDir)scripts\build.ps1&quot; -Arch $(IV50Arch) -Configuration $(Configuration)</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>pwsh -NoProfile -File &quot;$(ProjectDir)scripts\build-ffmpeg.ps1&quot; -Arch $(IV50Arch) -Force &amp;&amp; pwsh -NoProfile -File &quot;$(ProjectDir)scripts\build.ps1&quot; -Arch $(IV50Arch) -Configuration $(Configuration) -SkipFFmpeg</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>pwsh -NoProfile -Command &quot;$p='$(ProjectDir)build\cmake\$(IV50Arch)-$([string]'$(Configuration)'.ToLowerInvariant())'; if(Test-Path -LiteralPath $p){Remove-Item -LiteralPath $p -Recurse -Force}&quot;</NMakeCleanCommandLine>
+    <NMakeIncludeSearchPath>$(ProjectDir)include;$(ProjectDir)third_party\ffmpeg</NMakeIncludeSearchPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='Win32'"><IV50Arch>x86</IV50Arch><NMakeOutput>$(ProjectDir)artifacts\x86\iv50_ffmpeg_vfw_x86.dll</NMakeOutput></PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='x64'"><IV50Arch>x64</IV50Arch><NMakeOutput>$(ProjectDir)artifacts\x64\iv50_ffmpeg_vfw_x64.dll</NMakeOutput></PropertyGroup>
+  <ItemGroup>
+    <ClCompile Include="src\driver.c" />
+    <ClCompile Include="src\decoder.c" />
+    <ClCompile Include="src\pixel_convert.c" />
+    <ClInclude Include="include\iv50_vfw.h" />
+    <None Include="CMakeLists.txt" />
+    <None Include="CMakePresets.json" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

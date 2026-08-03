@@ -1,0 +1,3 @@
+LIBRARY iv50_ffmpeg_vfw
+EXPORTS
+    DriverProc

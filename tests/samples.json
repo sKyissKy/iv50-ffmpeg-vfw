@@ -1,0 +1,7 @@
+{
+  "fileName": "Educ_Movie_DeadlyForce.avi",
+  "url": "https://samples.ffmpeg.org/V-codecs/IV50/Educ_Movie_DeadlyForce.avi",
+  "sha256": "70564f095c92527c5e55f503207d579c5a3e177f4592a9e146e19e98d081d464",
+  "expectedProbeCrc32": null,
+  "note": "Official FFmpeg sample used by the Indeo 5 FATE test; the sample is downloaded during integration testing and is not redistributed."
+}

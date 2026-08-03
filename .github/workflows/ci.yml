@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86, x64]
+    steps:
+      - name: Checkout with FFmpeg submodule
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Prepare build environment
+        shell: pwsh
+        run: ./scripts/bootstrap.ps1 -InstallDependencies
+
+      - name: Verify pinned FFmpeg commit
+        shell: pwsh
+        run: |
+          $actual = (git -C third_party/ffmpeg rev-parse HEAD).Trim()
+          if ($actual -ne '140fd653aed8cad774f991ba083e2d01e86420c7') {
+            throw "Unexpected FFmpeg commit: $actual"
+          }
+
+      - name: Build and unit test
+        shell: pwsh
+        run: ./scripts/build.ps1 -Arch ${{ matrix.arch }} -Configuration Release
+
+      - name: Integration test
+        shell: pwsh
+        run: ./scripts/test.ps1 -Arch ${{ matrix.arch }} -Integration
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iv50-vfw-${{ matrix.arch }}
+          path: artifacts/${{ matrix.arch }}/
+          if-no-files-found: error

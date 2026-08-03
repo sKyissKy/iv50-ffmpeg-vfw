@@ -1,0 +1,17 @@
+/.vs/
+/artifacts/
+/build/
+/release/
+/third_party/ffmpeg/
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+*.pdb
+*.obj
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+!tests/**/*.c
