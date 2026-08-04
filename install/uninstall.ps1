@@ -25,6 +25,8 @@ function Restore-CodecMapping {
 $systemRoot = $env:windir
 $codec32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_vfw_x86.dll'
 $codec64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_vfw_x64.dll'
+$mft32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_mft_x86.dll'
+$mft64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_mft_x64.dll'
 $stateRoot = Join-Path $env:ProgramData 'IV50 FFmpeg VFW'
 $backupPath = Join-Path $stateRoot 'registry-backup.json'
 if (-not (Test-Path -LiteralPath $backupPath)) {
@@ -36,12 +38,19 @@ foreach ($process in Get-Process -ErrorAction SilentlyContinue) {
     try {
         foreach ($module in $process.Modules) {
             if ($module.FileName.Equals($codec32, [StringComparison]::OrdinalIgnoreCase) -or
-                $module.FileName.Equals($codec64, [StringComparison]::OrdinalIgnoreCase)) {
+                $module.FileName.Equals($codec64, [StringComparison]::OrdinalIgnoreCase) -or
+                $module.FileName.Equals($mft32, [StringComparison]::OrdinalIgnoreCase) -or
+                $module.FileName.Equals($mft64, [StringComparison]::OrdinalIgnoreCase)) {
                 $loadedBy += "$($process.ProcessName) ($($process.Id))"
             }
         }
     } catch { }
 }
+
+$regsvr32_32 = Join-Path $systemRoot 'SysWOW64\regsvr32.exe'
+$regsvr32_64 = Join-Path $systemRoot 'System32\regsvr32.exe'
+if (Test-Path -LiteralPath $mft32) { & $regsvr32_32 /s /u $mft32 }
+if (Test-Path -LiteralPath $mft64) { & $regsvr32_64 /s /u $mft64 }
 if ($loadedBy.Count -ne 0) {
     throw "Close processes currently using the codec: $($loadedBy -join ', ')"
 }
@@ -50,7 +59,7 @@ $backup = Get-Content -LiteralPath $backupPath -Raw | ConvertFrom-Json
 Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) $backup.registry32
 Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) $backup.registry64
 
-foreach ($codecPath in @($codec32, $codec64)) {
+foreach ($codecPath in @($codec32, $codec64, $mft32, $mft64)) {
     if (Test-Path -LiteralPath $codecPath) {
         Remove-Item -LiteralPath $codecPath -Force
     }

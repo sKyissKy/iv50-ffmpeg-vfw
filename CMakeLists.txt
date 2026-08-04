@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(IV50Vfw VERSION 0.1.0 LANGUAGES C)
+project(IV50Vfw VERSION 0.1.0 LANGUAGES C CXX)
 
 include(CTest)
 
@@ -67,7 +67,28 @@ set_target_properties(iv50_ffmpeg_vfw PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED YES)
 
-foreach(target iv50_format iv50_ffmpeg_vfw)
+add_library(iv50_ffmpeg_mft SHARED
+    src/mft.cpp
+    src/decoder.c
+    src/mft.def)
+target_include_directories(iv50_ffmpeg_mft PRIVATE include)
+target_include_directories(iv50_ffmpeg_mft SYSTEM PRIVATE "${FFMPEG_INCLUDE_DIR}")
+target_link_libraries(iv50_ffmpeg_mft PRIVATE
+    iv50_format
+    "${FFMPEG_AVCODEC_LIBRARY}"
+    "${FFMPEG_SWSCALE_LIBRARY}"
+    "${FFMPEG_AVUTIL_LIBRARY}"
+    mfplat
+    mfuuid
+    ole32
+    advapi32
+    bcrypt)
+set_target_properties(iv50_ffmpeg_mft PROPERTIES
+    OUTPUT_NAME "iv50_ffmpeg_mft_${IV50_TARGET_ARCH}"
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED YES)
+
+foreach(target iv50_format iv50_ffmpeg_vfw iv50_ffmpeg_mft)
     target_compile_definitions(${target} PRIVATE
         WIN32_LEAN_AND_MEAN
         _CRT_SECURE_NO_WARNINGS)
@@ -76,7 +97,13 @@ foreach(target iv50_format iv50_ffmpeg_vfw)
         $<$<CONFIG:Release>:/O2>
         $<$<CONFIG:Release>:/Zi>)
 endforeach()
+target_compile_options(iv50_ffmpeg_mft PRIVATE /EHsc)
 target_link_options(iv50_ffmpeg_vfw PRIVATE
+    /DYNAMICBASE /NXCOMPAT /GUARD:CF /Brepro
+    $<$<CONFIG:Release>:/DEBUG:FULL>
+    $<$<CONFIG:Release>:/OPT:REF>
+    $<$<CONFIG:Release>:/OPT:ICF>)
+target_link_options(iv50_ffmpeg_mft PRIVATE
     /DYNAMICBASE /NXCOMPAT /GUARD:CF /Brepro
     $<$<CONFIG:Release>:/DEBUG:FULL>
     $<$<CONFIG:Release>:/OPT:REF>
@@ -103,6 +130,6 @@ if(BUILD_TESTING)
     target_compile_options(vfw_probe PRIVATE /W4 /WX /permissive- /sdl /Brepro)
 endif()
 
-install(TARGETS iv50_ffmpeg_vfw vfw_probe
+install(TARGETS iv50_ffmpeg_vfw iv50_ffmpeg_mft vfw_probe
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION bin)

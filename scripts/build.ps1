@@ -41,15 +41,21 @@ $buildDirectory = Join-Path $repoRoot "build\cmake\$preset"
 $artifactDirectory = Join-Path $repoRoot "artifacts\$Arch"
 New-Item -ItemType Directory -Path $artifactDirectory -Force | Out-Null
 $dll = Get-ChildItem -LiteralPath $buildDirectory -Filter "iv50_ffmpeg_vfw_$Arch.dll" -Recurse | Select-Object -First 1
+$mft = Get-ChildItem -LiteralPath $buildDirectory -Filter "iv50_ffmpeg_mft_$Arch.dll" -Recurse | Select-Object -First 1
 $probe = Get-ChildItem -LiteralPath $buildDirectory -Filter 'vfw_probe.exe' -Recurse | Select-Object -First 1
-if (-not $dll -or -not $probe) {
-    throw 'Expected DLL or VFW probe was not produced.'
+if (-not $dll -or -not $mft -or -not $probe) {
+    throw 'Expected VFW DLL, MFT DLL, or VFW probe was not produced.'
 }
 Copy-Item -LiteralPath $dll.FullName -Destination $artifactDirectory -Force
+Copy-Item -LiteralPath $mft.FullName -Destination $artifactDirectory -Force
 Copy-Item -LiteralPath $probe.FullName -Destination $artifactDirectory -Force
 $pdb = Get-ChildItem -LiteralPath $buildDirectory -Filter "iv50_ffmpeg_vfw_$Arch.pdb" -Recurse | Select-Object -First 1
 if ($pdb) {
     Copy-Item -LiteralPath $pdb.FullName -Destination $artifactDirectory -Force
+}
+$mftPdb = Get-ChildItem -LiteralPath $buildDirectory -Filter "iv50_ffmpeg_mft_$Arch.pdb" -Recurse | Select-Object -First 1
+if ($mftPdb) {
+    Copy-Item -LiteralPath $mftPdb.FullName -Destination $artifactDirectory -Force
 }
 
 $dumpbin = (Get-Command dumpbin.exe -ErrorAction Stop).Source

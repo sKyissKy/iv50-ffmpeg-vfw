@@ -41,10 +41,14 @@ $packages += New-ZipPackage "iv50-vfw-v$Version-combined" {
     New-Item -ItemType Directory -Path (Join-Path $stage 'install\payload\x86'), (Join-Path $stage 'install\payload\x64') -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x86\iv50_ffmpeg_vfw_x86.dll') -Destination (Join-Path $stage 'install\payload\x86')
     Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x64\iv50_ffmpeg_vfw_x64.dll') -Destination (Join-Path $stage 'install\payload\x64')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x86\iv50_ffmpeg_mft_x86.dll') -Destination (Join-Path $stage 'install\payload\x86')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x64\iv50_ffmpeg_mft_x64.dll') -Destination (Join-Path $stage 'install\payload\x64')
     Copy-Item -LiteralPath (Join-Path $repoRoot 'install\install.ps1'), (Join-Path $repoRoot 'install\uninstall.ps1') -Destination (Join-Path $stage 'install')
     $payloads = @(
         (Join-Path $stage 'install\payload\x86\iv50_ffmpeg_vfw_x86.dll'),
-        (Join-Path $stage 'install\payload\x64\iv50_ffmpeg_vfw_x64.dll')
+        (Join-Path $stage 'install\payload\x64\iv50_ffmpeg_vfw_x64.dll'),
+        (Join-Path $stage 'install\payload\x86\iv50_ffmpeg_mft_x86.dll'),
+        (Join-Path $stage 'install\payload\x64\iv50_ffmpeg_mft_x64.dll')
     )
     $payloadHashes = foreach ($payload in $payloads) {
         $hash = (Get-FileHash -LiteralPath $payload -Algorithm SHA256).Hash.ToLowerInvariant()

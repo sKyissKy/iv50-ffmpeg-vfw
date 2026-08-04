@@ -16,7 +16,15 @@ Files are installed into the Windows codec directories:
 ```text
 C:\Windows\SysWOW64\iv50_ffmpeg_vfw_x86.dll
 C:\Windows\System32\iv50_ffmpeg_vfw_x64.dll
+C:\Windows\SysWOW64\iv50_ffmpeg_mft_x86.dll
+C:\Windows\System32\iv50_ffmpeg_mft_x64.dll
 ```
+
+The installer registers the x86 MFT with
+`C:\Windows\SysWOW64\regsvr32.exe` and the x64 MFT with
+`C:\Windows\System32\regsvr32.exe`. The MFT registration creates the COM
+class registration and the Media Foundation video-decoder registration for
+IV50. It is separate from the VFW `Drivers32\vidc.iv50` mapping.
 
 The installer writes a different full DLL path to the 32-bit and 64-bit views
 of:
@@ -34,4 +42,7 @@ To uninstall, close every application using the codec and run:
 pwsh -ExecutionPolicy Bypass -File install\uninstall.ps1
 ```
 
-The uninstaller refuses to guess if its registry backup is missing.
+The uninstaller first unregisters both MFTs, restores the saved VFW mapping,
+and then removes only this project's four DLLs. It refuses to guess if its
+registry backup is missing. Media Foundation applications should be closed
+before uninstalling because an in-use MFT DLL cannot be removed safely.

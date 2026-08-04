@@ -2,6 +2,12 @@
 
 The DLL is a classic installable VFW/VCM driver exporting `DriverProc`.
 
+The repository also builds a separate Media Foundation Transform DLL. It is
+not loaded through `Drivers32`; COM and `MFTRegister` registration advertise
+the IV50 subtype and the transform accepts compressed IV50 samples and emits
+RGB32 samples. The MFT shares the decoder and pixel conversion code with the
+VFW driver, but has its own COM lifetime and stream state.
+
 ```text
 32/64-bit application
   -> msvfw32 / Video Compression Manager

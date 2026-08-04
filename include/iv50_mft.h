@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+
+#ifndef IV50_MFT_H
+#define IV50_MFT_H
+
+#include <guiddef.h>
+
+DEFINE_GUID(CLSID_IV50_FFMPEG_MFT,
+    0x7a7b8e50, 0x4d50, 0x4f5a, 0x9b, 0x4c, 0x55, 0x1a, 0x50, 0x39, 0x50, 0x01);
+
+/* MFVideoFormat_IV50 is not declared by the Windows SDK. */
+DEFINE_GUID(MFVideoFormat_IV50,
+    0x30355649, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
+
+#endif
