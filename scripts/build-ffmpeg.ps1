@@ -61,6 +61,7 @@ $configurationJson = $configuration | ConvertTo-Json -Depth 5 -Compress
 if (-not $Force -and (Test-Path -LiteralPath $stampPath)) {
     if ((Get-Content -LiteralPath $stampPath -Raw).Trim() -eq $configurationJson) {
         Write-Host "FFmpeg $Arch is already current."
+        $global:LASTEXITCODE = 0
         return
     }
 }

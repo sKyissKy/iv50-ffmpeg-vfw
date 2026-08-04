@@ -30,7 +30,10 @@ function Import-VsEnvironment {
 
     $vsPath = Get-VisualStudioPath
     $vsDevCmd = Join-Path $vsPath 'Common7\Tools\VsDevCmd.bat'
-    $commandLine = "call `"$vsDevCmd`" -no_logo -arch=$Arch -host_arch=x64 >nul && set"
+    if (-not (Get-Variable -Name Iv50InitialPath -Scope Global -ErrorAction SilentlyContinue)) {
+        $global:Iv50InitialPath = $env:Path
+    }
+    $commandLine = "set `"PATH=$global:Iv50InitialPath`" && call `"$vsDevCmd`" -no_logo -arch=$Arch -host_arch=x64 >nul && set"
     $environmentLines = & $env:ComSpec /d /s /c $commandLine
     if ($LASTEXITCODE -ne 0) {
         throw "VsDevCmd failed for $Arch."
