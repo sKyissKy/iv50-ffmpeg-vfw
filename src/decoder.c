@@ -250,9 +250,19 @@ int iv50_decoder_decode(
     }
 
     suppress_output = (request->dwFlags &
-        (ICDECOMPRESS_HURRYUP | ICDECOMPRESS_UPDATE | ICDECOMPRESS_PREROLL)) != 0;
+        (ICDECOMPRESS_HURRYUP | ICDECOMPRESS_PREROLL)) != 0;
     if (request->lpOutput == NULL && !suppress_output) {
         return ICERR_BADPARAM;
+    }
+
+    if ((request->dwFlags & ICDECOMPRESS_NULLFRAME) != 0) {
+        if (!decoder->has_last_output) {
+            return ICERR_OK;
+        }
+        if (!suppress_output && request->lpOutput != NULL) {
+            memcpy(request->lpOutput, decoder->last_output, decoder->last_output_size);
+        }
+        return ICERR_OK;
     }
 
     input_size = request->lpbiInput->biSizeImage;

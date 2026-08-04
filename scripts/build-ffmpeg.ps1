@@ -54,7 +54,7 @@ $configuration = [ordered]@{
         '--disable-swresample',
         '--disable-programs', '--disable-doc', '--disable-network', '--disable-debug',
         '--disable-gpl', '--disable-nonfree', '--disable-asm', '--disable-x86asm',
-        '--extra-cflags=-MT /wd4101 /wd4090 /wd4133 /wd4333 /wd4334'
+        '--extra-cflags=-MT -utf-8 -wd4101 -wd4090 -wd4133 -wd4333 -wd4334'
     )
 }
 $configurationJson = $configuration | ConvertTo-Json -Depth 5 -Compress
@@ -94,9 +94,9 @@ cd "$IV50_FFMPEG_BUILD"
   --disable-swresample \
   --disable-programs --disable-doc --disable-network --disable-debug \
   --disable-gpl --disable-nonfree --disable-asm --disable-x86asm \
-  --extra-cflags="-MT /wd4101 /wd4090 /wd4133 /wd4333 /wd4334"
+  --extra-cflags="-MT -utf-8 -wd4101 -wd4090 -wd4133 -wd4333 -wd4334"
 make -j"$IV50_BUILD_JOBS"
-make install
+make install-libavcodec install-libavutil install-libswscale install-headers
 '@
 $env:IV50_BUILD_JOBS = $jobs
 & $bash --noprofile --norc -lc $shellScript

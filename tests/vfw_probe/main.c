@@ -72,33 +72,44 @@ int wmain(int argc, wchar_t **argv)
     HRESULT result;
     BOOL avi_initialized = FALSE;
     BOOL decompress_started = FALSE;
+    BOOL registry_mode = FALSE;
     int exit_code = 1;
 
     if (argc != 3) {
-        fwprintf(stderr, L"usage: %ls <codec.dll> <iv50.avi>\n", argv[0]);
+        fwprintf(stderr, L"usage: %ls <codec.dll|--registry> <iv50.avi>\n", argv[0]);
         return 2;
     }
 
-    codec_module = LoadLibraryW(argv[1]);
-    if (codec_module == NULL) {
-        fwprintf(stderr, L"LoadLibraryW failed: %lu\n", GetLastError());
-        goto cleanup;
+    registry_mode = _wcsicmp(argv[1], L"--registry") == 0;
+    if (!registry_mode) {
+        codec_module = LoadLibraryW(argv[1]);
+        if (codec_module == NULL) {
+            fwprintf(stderr, L"LoadLibraryW failed: %lu\n", GetLastError());
+            goto cleanup;
+        }
+        codec_proc = (CodecDriverProc)(void *)GetProcAddress(codec_module, "DriverProc");
+        if (codec_proc == NULL) {
+            fwprintf(stderr, L"DriverProc export not found\n");
+            goto cleanup;
+        }
     }
-    codec_proc = (CodecDriverProc)(void *)GetProcAddress(codec_module, "DriverProc");
-    if (codec_proc == NULL) {
-        fwprintf(stderr, L"DriverProc export not found\n");
-        goto cleanup;
+    if (registry_mode) {
+        first_codec = ICOpen(
+            ICTYPE_VIDEO, mmioFOURCC('I', 'V', '5', '0'), ICMODE_DECOMPRESS);
+        second_codec = ICOpen(
+            ICTYPE_VIDEO, mmioFOURCC('I', 'V', '5', '0'), ICMODE_DECOMPRESS);
+    } else {
+        first_codec = ICOpenFunction(
+            ICTYPE_VIDEO,
+            mmioFOURCC('I', 'V', '5', '0'),
+            ICMODE_DECOMPRESS,
+            (FARPROC)codec_proc);
+        second_codec = ICOpenFunction(
+            ICTYPE_VIDEO,
+            mmioFOURCC('I', 'V', '5', '0'),
+            ICMODE_DECOMPRESS,
+            (FARPROC)codec_proc);
     }
-    first_codec = ICOpenFunction(
-        ICTYPE_VIDEO,
-        mmioFOURCC('I', 'V', '5', '0'),
-        ICMODE_DECOMPRESS,
-        (FARPROC)codec_proc);
-    second_codec = ICOpenFunction(
-        ICTYPE_VIDEO,
-        mmioFOURCC('I', 'V', '5', '0'),
-        ICMODE_DECOMPRESS,
-        (FARPROC)codec_proc);
     if (first_codec == NULL || second_codec == NULL) {
         fwprintf(stderr, L"ICOpenFunction(VIDC, IV50) failed\n");
         goto cleanup;
