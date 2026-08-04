@@ -36,13 +36,23 @@ HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Drivers32
 The value name is `vidc.iv50`. The prior state is backed up under
 `C:\ProgramData\IV50 FFmpeg VFW` and is not overwritten by reinstalling.
 
+Installation is component-aware and idempotent. If an installed DLL has the
+expected SHA-256 and PE architecture, the copy step is skipped. An existing
+VFW mapping or MFT registration is also left unchanged when it already points
+to the expected system DLL. Missing or mismatched components are updated
+independently, so a partially installed x86/x64 set can be repaired without
+reinstalling every DLL.
+
 To uninstall, close every application using the codec and run:
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File install\uninstall.ps1
 ```
 
-The uninstaller first unregisters both MFTs, restores the saved VFW mapping,
-and then removes only this project's four DLLs. It refuses to guess if its
-registry backup is missing. Media Foundation applications should be closed
-before uninstalling because an in-use MFT DLL cannot be removed safely.
+The uninstaller is also idempotent: if none of this project's four DLLs is
+present, it exits without changing anything. Otherwise it unregisters only the
+installed MFT DLLs, restores the saved VFW mapping when applicable, and removes
+only the project's DLLs. If VFW DLLs exist but the registry backup is missing,
+it refuses to guess the previous mapping. Media Foundation applications should
+be closed before uninstalling because an in-use MFT DLL cannot be removed
+safely.

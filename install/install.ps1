@@ -108,6 +108,42 @@ function Set-CodecMapping {
     } finally { $base.Dispose() }
 }
 
+function Get-CodecMapping {
+    param([Microsoft.Win32.RegistryView]$View)
+    $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+        [Microsoft.Win32.RegistryHive]::LocalMachine, $View)
+    try {
+        $key = $base.OpenSubKey('SOFTWARE\Microsoft\Windows NT\CurrentVersion\Drivers32', $false)
+        try { return if ($key) { [string]$key.GetValue('vidc.iv50') } else { '' } }
+        finally { if ($key) { $key.Dispose() } }
+    } finally { $base.Dispose() }
+}
+
+function Test-InstalledDll {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$ExpectedHash,
+        [Parameter(Mandatory)][UInt16]$ExpectedMachine
+    )
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    try {
+        return (Get-PeMachine $Path) -eq $ExpectedMachine -and
+            (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.Equals(
+                $ExpectedHash, [StringComparison]::OrdinalIgnoreCase)
+    } catch { return $false }
+}
+
+function Get-MftInprocPath {
+    param([Microsoft.Win32.RegistryView]$View, [string]$Clsid)
+    $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+        [Microsoft.Win32.RegistryHive]::LocalMachine, $View)
+    try {
+        $key = $base.OpenSubKey("Software\Classes\CLSID\$Clsid\InprocServer32", $false)
+        try { return if ($key) { [string]$key.GetValue('') } else { '' } }
+        finally { if ($key) { $key.Dispose() } }
+    } finally { $base.Dispose() }
+}
+
 $X86Dll = (Resolve-Path -LiteralPath $X86Dll).Path
 $X64Dll = (Resolve-Path -LiteralPath $X64Dll).Path
 $MftX86Dll = (Resolve-Path -LiteralPath $MftX86Dll).Path
@@ -133,8 +169,26 @@ if ((Get-PeMachine $MftX64Dll) -ne 0x8664) { throw 'The x64 MFT DLL has the wron
 $systemRoot = $env:windir
 $stateRoot = Join-Path $env:ProgramData 'IV50 FFmpeg VFW'
 $backupPath = Join-Path $stateRoot 'registry-backup.json'
-New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
-if (-not (Test-Path -LiteralPath $backupPath)) {
+
+$destination32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_vfw_x86.dll'
+$destination64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_vfw_x64.dll'
+$mftDestination32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_mft_x86.dll'
+$mftDestination64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_mft_x64.dll'
+$mftClsid = '{7A7B8E50-4D50-4F5A-9B4C-551A50395001}'
+$vfw32NeedsCopy = -not (Test-InstalledDll $destination32 $ExpectedX86Sha256 0x014C)
+$vfw64NeedsCopy = -not (Test-InstalledDll $destination64 $ExpectedX64Sha256 0x8664)
+$mft32NeedsCopy = -not (Test-InstalledDll $mftDestination32 $ExpectedMftX86Sha256 0x014C)
+$mft64NeedsCopy = -not (Test-InstalledDll $mftDestination64 $ExpectedMftX64Sha256 0x8664)
+if ($vfw32NeedsCopy) { Copy-Item -LiteralPath $X86Dll -Destination $destination32 -Force } else { Write-Host "Skipped existing x86 VFW DLL: $destination32" }
+if ($vfw64NeedsCopy) { Copy-Item -LiteralPath $X64Dll -Destination $destination64 -Force } else { Write-Host "Skipped existing x64 VFW DLL: $destination64" }
+if ($mft32NeedsCopy) { Copy-Item -LiteralPath $MftX86Dll -Destination $mftDestination32 -Force } else { Write-Host "Skipped existing x86 MFT DLL: $mftDestination32" }
+if ($mft64NeedsCopy) { Copy-Item -LiteralPath $MftX64Dll -Destination $mftDestination64 -Force } else { Write-Host "Skipped existing x64 MFT DLL: $mftDestination64" }
+
+$backupRequired = ($vfw32NeedsCopy -or $vfw64NeedsCopy -or
+    (Get-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) -ne $destination32) -or
+    (Get-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) -ne $destination64))
+if ($backupRequired -and -not (Test-Path -LiteralPath $backupPath)) {
+    New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
     $backup = [ordered]@{
         createdUtc = [DateTime]::UtcNow.ToString('o')
         registry32 = Get-RegistryValueState ([Microsoft.Win32.RegistryView]::Registry32)
@@ -143,24 +197,19 @@ if (-not (Test-Path -LiteralPath $backupPath)) {
     $backup | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $backupPath -Encoding utf8NoBOM
 }
 
-$destination32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_vfw_x86.dll'
-$destination64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_vfw_x64.dll'
-$mftDestination32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_mft_x86.dll'
-$mftDestination64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_mft_x64.dll'
-Copy-Item -LiteralPath $X86Dll -Destination $destination32 -Force
-Copy-Item -LiteralPath $X64Dll -Destination $destination64 -Force
-Copy-Item -LiteralPath $MftX86Dll -Destination $mftDestination32 -Force
-Copy-Item -LiteralPath $MftX64Dll -Destination $mftDestination64 -Force
-
 $regsvr32_32 = Join-Path $systemRoot 'SysWOW64\regsvr32.exe'
 $regsvr32_64 = Join-Path $systemRoot 'System32\regsvr32.exe'
-$registration32 = Start-Process -FilePath $regsvr32_32 -ArgumentList @('/s', $mftDestination32) -Wait -PassThru
-if ($registration32.ExitCode -ne 0) { throw "x86 MFT registration failed with exit code $($registration32.ExitCode)." }
-$registration64 = Start-Process -FilePath $regsvr32_64 -ArgumentList @('/s', $mftDestination64) -Wait -PassThru
-if ($registration64.ExitCode -ne 0) { throw "x64 MFT registration failed with exit code $($registration64.ExitCode)." }
+if ($mft32NeedsCopy -or ((Get-MftInprocPath ([Microsoft.Win32.RegistryView]::Registry32) $mftClsid) -ne $mftDestination32)) {
+    $registration32 = Start-Process -FilePath $regsvr32_32 -ArgumentList @('/s', $mftDestination32) -Wait -PassThru
+    if ($registration32.ExitCode -ne 0) { throw "x86 MFT registration failed with exit code $($registration32.ExitCode)." }
+} else { Write-Host 'Skipped existing x86 MFT registration.' }
+if ($mft64NeedsCopy -or ((Get-MftInprocPath ([Microsoft.Win32.RegistryView]::Registry64) $mftClsid) -ne $mftDestination64)) {
+    $registration64 = Start-Process -FilePath $regsvr32_64 -ArgumentList @('/s', $mftDestination64) -Wait -PassThru
+    if ($registration64.ExitCode -ne 0) { throw "x64 MFT registration failed with exit code $($registration64.ExitCode)." }
+} else { Write-Host 'Skipped existing x64 MFT registration.' }
 
-Set-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) $destination32
-Set-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) $destination64
+if ((Get-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32)) -ne $destination32) { Set-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) $destination32 } else { Write-Host 'Skipped existing x86 VFW mapping.' }
+if ((Get-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64)) -ne $destination64) { Set-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) $destination64 } else { Write-Host 'Skipped existing x64 VFW mapping.' }
 
 Write-Host "Installed x86: $destination32"
 Write-Host "Installed x64: $destination64"

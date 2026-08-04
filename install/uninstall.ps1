@@ -27,11 +27,14 @@ $codec32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_vfw_x86.dll'
 $codec64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_vfw_x64.dll'
 $mft32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_mft_x86.dll'
 $mft64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_mft_x64.dll'
+$installedPaths = @($codec32, $codec64, $mft32, $mft64) |
+    Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+if ($installedPaths.Count -eq 0) {
+    Write-Host 'No IV50 FFmpeg VFW or MFT DLL is installed; nothing to uninstall.'
+    exit 0
+}
 $stateRoot = Join-Path $env:ProgramData 'IV50 FFmpeg VFW'
 $backupPath = Join-Path $stateRoot 'registry-backup.json'
-if (-not (Test-Path -LiteralPath $backupPath)) {
-    throw 'Registry backup was not found; refusing to guess the previous mapping.'
-}
 
 $loadedBy = @()
 foreach ($process in Get-Process -ErrorAction SilentlyContinue) {
@@ -47,17 +50,32 @@ foreach ($process in Get-Process -ErrorAction SilentlyContinue) {
     } catch { }
 }
 
-$regsvr32_32 = Join-Path $systemRoot 'SysWOW64\regsvr32.exe'
-$regsvr32_64 = Join-Path $systemRoot 'System32\regsvr32.exe'
-if (Test-Path -LiteralPath $mft32) { & $regsvr32_32 /s /u $mft32 }
-if (Test-Path -LiteralPath $mft64) { & $regsvr32_64 /s /u $mft64 }
 if ($loadedBy.Count -ne 0) {
     throw "Close processes currently using the codec: $($loadedBy -join ', ')"
 }
 
-$backup = Get-Content -LiteralPath $backupPath -Raw | ConvertFrom-Json
-Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) $backup.registry32
-Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) $backup.registry64
+$hasVfw = (Test-Path -LiteralPath $codec32 -PathType Leaf) -or
+    (Test-Path -LiteralPath $codec64 -PathType Leaf)
+if ($hasVfw -and -not (Test-Path -LiteralPath $backupPath)) {
+    throw 'Registry backup was not found; refusing to guess the previous VFW mapping.'
+}
+
+$regsvr32_32 = Join-Path $systemRoot 'SysWOW64\regsvr32.exe'
+$regsvr32_64 = Join-Path $systemRoot 'System32\regsvr32.exe'
+if (Test-Path -LiteralPath $mft32) {
+    $registration32 = Start-Process -FilePath $regsvr32_32 -ArgumentList @('/s', '/u', $mft32) -Wait -PassThru
+    if ($registration32.ExitCode -ne 0) { throw "x86 MFT unregistration failed with exit code $($registration32.ExitCode)." }
+}
+if (Test-Path -LiteralPath $mft64) {
+    $registration64 = Start-Process -FilePath $regsvr32_64 -ArgumentList @('/s', '/u', $mft64) -Wait -PassThru
+    if ($registration64.ExitCode -ne 0) { throw "x64 MFT unregistration failed with exit code $($registration64.ExitCode)." }
+}
+
+if (Test-Path -LiteralPath $backupPath) {
+    $backup = Get-Content -LiteralPath $backupPath -Raw | ConvertFrom-Json
+    Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) $backup.registry32
+    Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) $backup.registry64
+}
 
 foreach ($codecPath in @($codec32, $codec64, $mft32, $mft64)) {
     if (Test-Path -LiteralPath $codecPath) {
