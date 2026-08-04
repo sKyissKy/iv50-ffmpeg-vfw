@@ -96,7 +96,7 @@ cd "$IV50_FFMPEG_BUILD"
   --disable-gpl --disable-nonfree --disable-asm --disable-x86asm \
   --extra-cflags="-MT -utf-8 -wd4101 -wd4090 -wd4133 -wd4333 -wd4334"
 make -j"$IV50_BUILD_JOBS"
-make install-libavcodec install-libavutil install-libswscale install-headers
+make install
 '@
 $env:IV50_BUILD_JOBS = $jobs
 & $bash --noprofile --norc -lc $shellScript
