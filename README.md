@@ -30,6 +30,10 @@ pwsh -File scripts/bootstrap.ps1
 pwsh -File scripts/build-all.ps1 -Configuration Release
 ```
 
+The Release asset named `iv50-vfw-vX.Y.Z-win-installer.zip` is the direct
+installation package. Extract it and run `install.cmd`; no repository checkout
+or manual payload copying is required.
+
 构建环境和可复现构建说明见 [docs/BUILDING.md](docs/BUILDING.md)。
 
 ### 安装
@@ -85,6 +89,10 @@ cd iv50-ffmpeg-vfw
 pwsh -File scripts/bootstrap.ps1
 pwsh -File scripts/build-all.ps1 -Configuration Release
 ```
+
+The `iv50-vfw-vX.Y.Z-win-installer.zip` Release asset is self-contained. Extract
+it and run `install.cmd` to install the x86/x64 VFW and Media Foundation
+components.
 
 See [docs/BUILDING.md](docs/BUILDING.md) for prerequisites and reproducible build details.
 

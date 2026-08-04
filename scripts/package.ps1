@@ -36,25 +36,25 @@ foreach ($arch in @('x86', 'x64')) {
     }
 }
 
-$packages += New-ZipPackage "iv50-vfw-v$Version-combined" {
+$packages += New-ZipPackage "iv50-vfw-v$Version-win-installer" {
     param($stage)
-    New-Item -ItemType Directory -Path (Join-Path $stage 'install\payload\x86'), (Join-Path $stage 'install\payload\x64') -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x86\iv50_ffmpeg_vfw_x86.dll') -Destination (Join-Path $stage 'install\payload\x86')
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x64\iv50_ffmpeg_vfw_x64.dll') -Destination (Join-Path $stage 'install\payload\x64')
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x86\iv50_ffmpeg_mft_x86.dll') -Destination (Join-Path $stage 'install\payload\x86')
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x64\iv50_ffmpeg_mft_x64.dll') -Destination (Join-Path $stage 'install\payload\x64')
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'install\install.ps1'), (Join-Path $repoRoot 'install\uninstall.ps1') -Destination (Join-Path $stage 'install')
+    New-Item -ItemType Directory -Path (Join-Path $stage 'payload\x86'), (Join-Path $stage 'payload\x64') -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x86\iv50_ffmpeg_vfw_x86.dll') -Destination (Join-Path $stage 'payload\x86')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x64\iv50_ffmpeg_vfw_x64.dll') -Destination (Join-Path $stage 'payload\x64')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x86\iv50_ffmpeg_mft_x86.dll') -Destination (Join-Path $stage 'payload\x86')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'artifacts\x64\iv50_ffmpeg_mft_x64.dll') -Destination (Join-Path $stage 'payload\x64')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'install\install.ps1'), (Join-Path $repoRoot 'install\uninstall.ps1'), (Join-Path $repoRoot 'install\install.cmd'), (Join-Path $repoRoot 'install\uninstall.cmd') -Destination $stage
     $payloads = @(
-        (Join-Path $stage 'install\payload\x86\iv50_ffmpeg_vfw_x86.dll'),
-        (Join-Path $stage 'install\payload\x64\iv50_ffmpeg_vfw_x64.dll'),
-        (Join-Path $stage 'install\payload\x86\iv50_ffmpeg_mft_x86.dll'),
-        (Join-Path $stage 'install\payload\x64\iv50_ffmpeg_mft_x64.dll')
+        (Join-Path $stage 'payload\x86\iv50_ffmpeg_vfw_x86.dll'),
+        (Join-Path $stage 'payload\x64\iv50_ffmpeg_vfw_x64.dll'),
+        (Join-Path $stage 'payload\x86\iv50_ffmpeg_mft_x86.dll'),
+        (Join-Path $stage 'payload\x64\iv50_ffmpeg_mft_x64.dll')
     )
     $payloadHashes = foreach ($payload in $payloads) {
         $hash = (Get-FileHash -LiteralPath $payload -Algorithm SHA256).Hash.ToLowerInvariant()
         "$hash  $([IO.Path]::GetFileName($payload))"
     }
-    $payloadHashes | Set-Content -LiteralPath (Join-Path $stage 'install\SHA256SUMS.txt') -Encoding ascii
+    $payloadHashes | Set-Content -LiteralPath (Join-Path $stage 'SHA256SUMS.txt') -Encoding ascii
     Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\INSTALL.md') -Destination $stage
     foreach ($file in $commonFiles) { Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $stage }
 }

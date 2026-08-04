@@ -1,9 +1,22 @@
 # Installation
 
-Use the combined release package. Open an elevated PowerShell terminal and run:
+Use the combined release package. Extract it to a writable folder, then
+double-click `install.cmd`. The wrapper starts PowerShell and requests
+administrator permission. You can also open an elevated PowerShell terminal
+and run:
 
 ```powershell
-pwsh -ExecutionPolicy Bypass -File install\install.ps1
+pwsh -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+The combined package is self-contained and has this layout:
+
+```text
+install.cmd / install.ps1
+uninstall.cmd / uninstall.ps1
+payload\x86\...
+payload\x64\...
+SHA256SUMS.txt
 ```
 
 The installer verifies both DLLs against the packaged `SHA256SUMS.txt`, then
@@ -46,7 +59,7 @@ reinstalling every DLL.
 To uninstall, close every application using the codec and run:
 
 ```powershell
-pwsh -ExecutionPolicy Bypass -File install\uninstall.ps1
+pwsh -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
 The uninstaller is also idempotent: if none of this project's four DLLs is
