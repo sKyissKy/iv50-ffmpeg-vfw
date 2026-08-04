@@ -71,3 +71,13 @@ The probe loads the selected DLL and opens its `DriverProc` through
 `IV50Vfw.sln` is a makefile-style convenience solution. Its Win32 and x64
 configurations call the same PowerShell/CMake scripts, so command-line and IDE
 builds do not diverge.
+
+# MSVC warnings from FFmpeg
+
+The pinned FFmpeg build is compiled with MSVC. FFmpeg supports this toolchain,
+but some generic source paths produce MSVC diagnostics such as C4101, C4090,
+C4133, C4333, and C4334. These are confined to the FFmpeg static-library
+build and are suppressed explicitly in `scripts/build-ffmpeg.ps1`; the wrapper,
+tests, and probe are still compiled with `/W4 /WX`. This keeps the CI log
+focused without weakening diagnostics for project code or changing FFmpeg
+source behavior.
