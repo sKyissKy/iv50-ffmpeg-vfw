@@ -22,12 +22,6 @@ try {
 
 if (-not $Integration) { return }
 
-$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-$principal = [Security.Principal.WindowsPrincipal]::new($identity)
-if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    throw 'Integration testing requires an elevated PowerShell session for temporary VFW registration.'
-}
-
 $manifest = Get-Content -LiteralPath (Join-Path $repoRoot 'tests\samples.json') -Raw | ConvertFrom-Json
 if (-not $SamplePath) {
     $sampleDirectory = Join-Path $repoRoot 'build\samples'
@@ -52,31 +46,9 @@ if ($actualHash -ne $manifest.sha256.ToLowerInvariant()) {
 $artifactDirectory = Join-Path $repoRoot "artifacts\$Arch"
 $dllPath = Join-Path $artifactDirectory "iv50_ffmpeg_vfw_$Arch.dll"
 $probePath = Join-Path $artifactDirectory 'vfw_probe.exe'
-$view = if ($Arch -eq 'x86') {
-    [Microsoft.Win32.RegistryView]::Registry32
-} else {
-    [Microsoft.Win32.RegistryView]::Registry64
-}
-$base = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
-    [Microsoft.Win32.RegistryHive]::LocalMachine, $view)
-$key = $base.CreateSubKey('SOFTWARE\Microsoft\Windows NT\CurrentVersion\Drivers32', $true)
-$hadOriginal = $key.GetValueNames() -contains 'vidc.iv50'
-$originalValue = if ($hadOriginal) { $key.GetValue('vidc.iv50', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames) } else { $null }
-$originalKind = if ($hadOriginal) { $key.GetValueKind('vidc.iv50') } else { $null }
-try {
-    $key.SetValue('vidc.iv50', $dllPath, [Microsoft.Win32.RegistryValueKind]::String)
-    $output = & $probePath $SamplePath
-    if ($LASTEXITCODE -ne 0) { throw 'VFW integration probe failed.' }
-    Write-Host $output
-    if ($manifest.expectedProbeCrc32 -and $output -notmatch "crc32=$($manifest.expectedProbeCrc32)") {
-        throw "Probe CRC did not match $($manifest.expectedProbeCrc32)."
-    }
-} finally {
-    if ($hadOriginal) {
-        $key.SetValue('vidc.iv50', $originalValue, $originalKind)
-    } else {
-        $key.DeleteValue('vidc.iv50', $false)
-    }
-    $key.Dispose()
-    $base.Dispose()
+$output = & $probePath $dllPath $SamplePath
+if ($LASTEXITCODE -ne 0) { throw 'VFW integration probe failed.' }
+Write-Host $output
+if ($manifest.expectedProbeCrc32 -and $output -notmatch "crc32=$($manifest.expectedProbeCrc32)") {
+    throw "Probe CRC did not match $($manifest.expectedProbeCrc32)."
 }

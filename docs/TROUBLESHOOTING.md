@@ -4,7 +4,9 @@
 
 - Confirm the application and DLL architectures match.
 - Query both registry views and verify `vidc.iv50` uses a full DLL path.
-- Run the matching `vfw_probe.exe`.
+- Run the matching probe directly, for example:
+  `vfw_probe.exe iv50_ffmpeg_vfw_x86.dll sample.avi`. This path does not
+  require registration or administrator rights.
 - Check `dependencies.txt`; no shared FFmpeg DLL should appear.
 
 ## Modern players work but the old application does not

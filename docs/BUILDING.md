@@ -54,6 +54,18 @@ encoders, demuxers, filters, and assembly.
 Outputs are staged in `artifacts/x86` and `artifacts/x64`. Each directory
 contains the codec DLL, VFW probe, dependency report, and `build-info.json`.
 
+Run the official FFmpeg IV50 sample integration test without installing the
+codec or changing the registry:
+
+```powershell
+pwsh -File scripts/test.ps1 -Arch x86 -Integration
+pwsh -File scripts/test.ps1 -Arch x64 -Integration
+```
+
+The probe loads the selected DLL and opens its `DriverProc` through
+`ICOpenFunction`. It validates all 134 frames against the fixed CRC in
+`tests/samples.json`.
+
 ## Visual Studio
 
 `IV50Vfw.sln` is a makefile-style convenience solution. Its Win32 and x64

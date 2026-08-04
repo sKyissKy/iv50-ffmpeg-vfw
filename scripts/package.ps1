@@ -63,9 +63,10 @@ if ($LASTEXITCODE -ne 0) { throw 'git archive failed; commit the release sources
 Expand-Archive -LiteralPath $archive -DestinationPath $sourceStage
 $ffmpegDestination = Join-Path $sourceStage 'third_party\ffmpeg'
 New-Item -ItemType Directory -Path $ffmpegDestination -Force | Out-Null
-& git -C (Join-Path $repoRoot 'third_party\ffmpeg') archive --format=zip --output=(Join-Path $packageRoot 'ffmpeg.zip') HEAD
-if ($LASTEXITCODE -ne 0) { throw 'FFmpeg submodule archive failed.' }
-Expand-Archive -LiteralPath (Join-Path $packageRoot 'ffmpeg.zip') -DestinationPath $ffmpegDestination
+$ffmpegSource = Join-Path $repoRoot 'third_party\ffmpeg'
+Get-ChildItem -LiteralPath $ffmpegSource -Force |
+    Where-Object Name -ne '.git' |
+    Copy-Item -Destination $ffmpegDestination -Recurse -Force
 $sourceZip = Join-Path $releaseRoot "iv50-vfw-v$Version-source-complete.zip"
 if (Test-Path -LiteralPath $sourceZip) { Remove-Item -LiteralPath $sourceZip -Force }
 Compress-Archive -Path (Join-Path $sourceStage '*') -DestinationPath $sourceZip -CompressionLevel Optimal

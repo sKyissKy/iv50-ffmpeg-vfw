@@ -26,13 +26,16 @@ endif()
 find_path(FFMPEG_INCLUDE_DIR libavcodec/avcodec.h
     PATHS "${IV50_FFMPEG_ROOT}/include"
     NO_DEFAULT_PATH REQUIRED)
-find_library(FFMPEG_AVCODEC_LIBRARY avcodec
+find_file(FFMPEG_AVCODEC_LIBRARY
+    NAMES libavcodec.a avcodec.lib
     PATHS "${IV50_FFMPEG_ROOT}/lib"
     NO_DEFAULT_PATH REQUIRED)
-find_library(FFMPEG_AVUTIL_LIBRARY avutil
+find_file(FFMPEG_AVUTIL_LIBRARY
+    NAMES libavutil.a avutil.lib
     PATHS "${IV50_FFMPEG_ROOT}/lib"
     NO_DEFAULT_PATH REQUIRED)
-find_library(FFMPEG_SWSCALE_LIBRARY swscale
+find_file(FFMPEG_SWSCALE_LIBRARY
+    NAMES libswscale.a swscale.lib
     PATHS "${IV50_FFMPEG_ROOT}/lib"
     NO_DEFAULT_PATH REQUIRED)
 
@@ -44,7 +47,8 @@ add_library(iv50_ffmpeg_vfw SHARED
     src/decoder.c
     src/iv50_vfw.def)
 target_include_directories(iv50_ffmpeg_vfw PRIVATE
-    include
+    include)
+target_include_directories(iv50_ffmpeg_vfw SYSTEM PRIVATE
     "${FFMPEG_INCLUDE_DIR}")
 target_link_libraries(iv50_ffmpeg_vfw PRIVATE
     iv50_format
@@ -68,7 +72,7 @@ foreach(target iv50_format iv50_ffmpeg_vfw)
         WIN32_LEAN_AND_MEAN
         _CRT_SECURE_NO_WARNINGS)
     target_compile_options(${target} PRIVATE
-        /W4 /WX /permissive- /sdl /guard:cf /Brepro
+        /W4 /WX /permissive- /sdl /guard:cf /Brepro /utf-8 /external:W0
         $<$<CONFIG:Release>:/O2>
         $<$<CONFIG:Release>:/Zi>)
 endforeach()

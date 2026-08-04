@@ -28,6 +28,19 @@ $expectedFfmpegCommit = '140fd653aed8cad774f991ba083e2d01e86420c7'
 if ($ffmpegCommit -ne $expectedFfmpegCommit) {
     throw "FFmpeg must be pinned to $expectedFfmpegCommit, found $ffmpegCommit."
 }
+$patchDirectory = Join-Path $repoRoot 'third_party\ffmpeg-patches'
+foreach ($patch in Get-ChildItem -LiteralPath $patchDirectory -Filter '*.patch' | Sort-Object Name) {
+    & git -C $ffmpegSource apply --check $patch.FullName 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        & git -C $ffmpegSource apply $patch.FullName
+        if ($LASTEXITCODE -ne 0) { throw "Unable to apply $($patch.Name)." }
+        continue
+    }
+    & git -C $ffmpegSource apply --reverse --check $patch.FullName 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "FFmpeg patch is neither applicable nor already applied: $($patch.Name)"
+    }
+}
 $configuration = [ordered]@{
     ffmpegCommit = $ffmpegCommit
     arch = $Arch
@@ -37,6 +50,8 @@ $configuration = [ordered]@{
         '--target-os=win32',
         '--enable-static', '--disable-shared', '--disable-autodetect', '--disable-everything',
         '--enable-avcodec', '--enable-avutil', '--enable-swscale', '--enable-decoder=indeo5',
+        '--disable-avdevice', '--disable-avfilter', '--disable-avformat',
+        '--disable-swresample',
         '--disable-programs', '--disable-doc', '--disable-network', '--disable-debug',
         '--disable-gpl', '--disable-nonfree', '--disable-asm', '--disable-x86asm',
         '--extra-cflags=-MT'
@@ -51,6 +66,7 @@ if (-not $Force -and (Test-Path -LiteralPath $stampPath)) {
 }
 
 Import-VsEnvironment -Arch $Arch
+$env:VSLANG = '1033'
 $bash = Get-MsysBashPath
 $env:IV50_FFMPEG_SOURCE = Convert-ToMsysPath $ffmpegSource
 $env:IV50_FFMPEG_BUILD = Convert-ToMsysPath (Join-Path $buildRoot 'obj')
@@ -60,6 +76,7 @@ $jobs = [Math]::Max(1, [Environment]::ProcessorCount)
 
 $shellScript = @'
 set -euo pipefail
+export PATH="/usr/bin:$PATH"
 command -v make >/dev/null
 rm -rf "$IV50_FFMPEG_BUILD" "$IV50_FFMPEG_PREFIX"
 mkdir -p "$IV50_FFMPEG_BUILD" "$IV50_FFMPEG_PREFIX"
@@ -72,6 +89,8 @@ cd "$IV50_FFMPEG_BUILD"
   --enable-static --disable-shared \
   --disable-autodetect --disable-everything \
   --enable-avcodec --enable-avutil --enable-swscale --enable-decoder=indeo5 \
+  --disable-avdevice --disable-avfilter --disable-avformat \
+  --disable-swresample \
   --disable-programs --disable-doc --disable-network --disable-debug \
   --disable-gpl --disable-nonfree --disable-asm --disable-x86asm \
   --extra-cflags=-MT

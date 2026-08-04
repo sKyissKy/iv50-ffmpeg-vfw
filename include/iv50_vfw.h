@@ -16,6 +16,7 @@ extern "C" {
 #endif
 
 #define IV50_FOURCC mmioFOURCC('I', 'V', '5', '0')
+#define IV50_VCM_HANDLER mmioFOURCC('i', 'v', '5', '0')
 #define IV50_MAX_DIMENSION 32768
 #define IV50_MAX_EXTRADATA (1024U * 1024U)
 #define IV50_MAX_COMPRESSED_FRAME (256U * 1024U * 1024U)

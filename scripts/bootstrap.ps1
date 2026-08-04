@@ -26,7 +26,7 @@ if ($InstallDependencies) {
         $msysBash = Get-MsysBashPath
     }
     & $msysBash --noprofile --norc -lc `
-        'pacman --noconfirm -Sy --needed make diffutils'
+        '/usr/bin/pacman --noconfirm -Sy --needed make diffutils'
     if ($LASTEXITCODE -ne 0) { throw 'Unable to install MSYS2 make/diffutils.' }
 }
 

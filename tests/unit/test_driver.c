@@ -42,6 +42,9 @@ int main(void)
     open_request.fccType = ICTYPE_VIDEO;
     open_request.fccHandler = IV50_FOURCC;
 
+    CHECK(DriverProc(0, NULL, DRV_INSTALL, 0, 0) == DRVCNF_OK);
+    CHECK(DriverProc(0, NULL, DRV_REMOVE, 0, 0) == DRVCNF_OK);
+
     first = (DWORD_PTR)DriverProc(0, NULL, DRV_OPEN, 0, (LPARAM)&open_request);
     second = (DWORD_PTR)DriverProc(0, NULL, DRV_OPEN, 0, (LPARAM)&open_request);
     CHECK(first != 0);
@@ -64,6 +67,11 @@ int main(void)
     CHECK(DriverProc(first, NULL, ICM_DECOMPRESS_QUERY, (LPARAM)&input, (LPARAM)&output) == ICERR_BADFORMAT);
 
     CHECK(DriverProc(second, NULL, DRV_CLOSE, 0, 0) == 1);
+    CHECK(DriverProc(first, NULL, DRV_CLOSE, 0, 0) == 1);
+
+    open_request.fccHandler = IV50_VCM_HANDLER;
+    first = (DWORD_PTR)DriverProc(0, NULL, DRV_OPEN, 0, (LPARAM)&open_request);
+    CHECK(first != 0);
     CHECK(DriverProc(first, NULL, DRV_CLOSE, 0, 0) == 1);
 
     open_request.fccHandler = mmioFOURCC('I', 'V', '4', '1');

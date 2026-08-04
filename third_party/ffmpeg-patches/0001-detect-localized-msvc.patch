@@ -1,0 +1,13 @@
+diff --git a/configure b/configure
+index 3d4a0b7..817ca0c 100755
+--- a/configure
++++ b/configure
+@@ -5174,7 +5174,7 @@ probe_cc(){
+         _flags_filter=msvc_flags_link
+         _ld_lib='lib%.a'
+         _ld_path='-libpath:'
+-    elif VSLANG=1033 $_cc -nologo- 2>&1 | grep -q ^Microsoft || { $_cc -v 2>&1 | grep -q clang && $_cc -? > /dev/null 2>&1; }; then
++    elif [ "$toolchain" = "msvc" ] || VSLANG=1033 $_cc -nologo- 2>&1 | grep -q ^Microsoft || { $_cc -v 2>&1 | grep -q clang && $_cc -? > /dev/null 2>&1; }; then
+         _type=msvc
+         if VSLANG=1033 $_cc -nologo- 2>&1 | grep -q ^Microsoft; then
+             # Depending on the tool (cl.exe or link.exe), the version number

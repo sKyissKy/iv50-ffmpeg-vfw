@@ -9,6 +9,10 @@ The source is pinned to FFmpeg tag `n8.0`, commit
 The build deliberately disables GPL and nonfree components. See
 `third_party/ffmpeg/LICENSE.md` and `third_party/ffmpeg/COPYING.LGPLv2.1`.
 
+The build applies `third_party/ffmpeg-patches/0001-detect-localized-msvc.patch`
+so FFmpeg recognizes a localized MSVC banner when `--toolchain=msvc` is
+explicitly selected. The patch does not modify codec implementation code.
+
 Intel and Indeo are trademarks of their respective owners. This project is
 not affiliated with or endorsed by Intel. It does not contain Intel's
 proprietary codec binaries or source code.

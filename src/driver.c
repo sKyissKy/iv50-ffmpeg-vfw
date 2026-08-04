@@ -15,7 +15,8 @@ static Iv50VfwInstance *iv50_instance_create(ICOPEN *open_request)
             return NULL;
         }
         if (open_request->fccHandler != 0 &&
-            open_request->fccHandler != IV50_FOURCC) {
+            open_request->fccHandler != IV50_FOURCC &&
+            open_request->fccHandler != IV50_VCM_HANDLER) {
             open_request->dwError = ICERR_BADFORMAT;
             return NULL;
         }
@@ -106,6 +107,10 @@ static LRESULT iv50_driver_proc_impl(
     case DRV_ENABLE:
     case DRV_DISABLE:
         return 1;
+
+    case DRV_INSTALL:
+    case DRV_REMOVE:
+        return DRVCNF_OK;
 
     case DRV_OPEN:
         return (LRESULT)(DWORD_PTR)iv50_instance_create((ICOPEN *)param2);

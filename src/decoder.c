@@ -18,6 +18,9 @@ struct Iv50Decoder {
     AVPacket *packet;
     struct SwsContext *sws_context;
     BITMAPINFOHEADER output_format;
+    uint8_t *last_output;
+    DWORD last_output_size;
+    BOOL has_last_output;
     BOOL begun;
 };
 
@@ -32,6 +35,10 @@ static void iv50_decoder_reset(Iv50Decoder *decoder)
     av_packet_free(&decoder->packet);
     av_frame_free(&decoder->frame);
     avcodec_free_context(&decoder->codec_context);
+    free(decoder->last_output);
+    decoder->last_output = NULL;
+    decoder->last_output_size = 0;
+    decoder->has_last_output = FALSE;
     ZeroMemory(&decoder->output_format, sizeof(decoder->output_format));
     decoder->begun = FALSE;
 }
@@ -58,6 +65,8 @@ int iv50_decoder_begin(
     const AVCodec *codec;
     size_t extra_size;
     const uint8_t *extra_source;
+    DWORD output_stride;
+    DWORD output_size;
     int result;
 
     if (decoder == NULL ||
@@ -108,7 +117,23 @@ int iv50_decoder_begin(
         return ICERR_BADFORMAT;
     }
 
+    if (!iv50_calculate_image_size(
+            output->biWidth,
+            output->biHeight,
+            output->biBitCount,
+            &output_stride,
+            &output_size)) {
+        iv50_decoder_reset(decoder);
+        return ICERR_BADFORMAT;
+    }
+    decoder->last_output = (uint8_t *)malloc(output_size);
+    if (decoder->last_output == NULL) {
+        iv50_decoder_reset(decoder);
+        return ICERR_MEMORY;
+    }
+
     decoder->output_format = *output;
+    decoder->last_output_size = output_size;
     decoder->begun = TRUE;
     return ICERR_OK;
 }
@@ -219,7 +244,8 @@ int iv50_decoder_decode(
             request->lpbiOutput->biBitCount,
             &output_stride,
             &output_size) ||
-        request->lpbiOutput->biSizeImage < output_size) {
+        request->lpbiOutput->biSizeImage < output_size ||
+        output_size != decoder->last_output_size) {
         return ICERR_BADPARAM;
     }
 
@@ -253,20 +279,31 @@ int iv50_decoder_decode(
     av_frame_unref(decoder->frame);
     result = avcodec_receive_frame(decoder->codec_context, decoder->frame);
     if (result == AVERROR(EAGAIN) || result == AVERROR_EOF) {
-        return ICERR_ERROR;
+        if (!decoder->has_last_output) {
+            return ICERR_ERROR;
+        }
+        if (!suppress_output && request->lpOutput != NULL) {
+            memcpy(request->lpOutput, decoder->last_output, output_size);
+        }
+        return ICERR_OK;
     }
     if (result < 0) {
         return ICERR_BADFORMAT;
     }
 
-    if (suppress_output || request->lpOutput == NULL) {
-        return ICERR_OK;
-    }
-
-    return iv50_convert_frame(
+    result = iv50_convert_frame(
         decoder,
         decoder->frame,
-        (uint8_t *)request->lpOutput);
+        decoder->last_output);
+    if (result != ICERR_OK) {
+        return result;
+    }
+    decoder->has_last_output = TRUE;
+
+    if (!suppress_output && request->lpOutput != NULL) {
+        memcpy(request->lpOutput, decoder->last_output, output_size);
+    }
+    return ICERR_OK;
 }
 
 void iv50_decoder_end(Iv50Decoder *decoder)

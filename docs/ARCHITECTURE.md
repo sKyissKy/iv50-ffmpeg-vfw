@@ -17,6 +17,11 @@ creates the FFmpeg decoder context, `ICM_DECOMPRESS` copies one compressed AVI
 chunk into a padded AVPacket and converts one decoded frame, and
 `ICM_DECOMPRESS_END` releases all codec state.
 
+Indeo 5 streams can contain tiny repeat-frame packets for which libavcodec
+returns no new frame. The instance keeps the last converted DIB and copies it
+to the caller for those packets, preserving VFW's one-output-frame-per-call
+behavior even when the caller changes output buffers.
+
 The wrapper validates the FOURCC, dimensions, BITMAPINFOHEADER sizes,
 compressed frame size, DIB stride, image size, and supported output formats.
 It does not scale or crop. Positive DIB heights produce bottom-up output;

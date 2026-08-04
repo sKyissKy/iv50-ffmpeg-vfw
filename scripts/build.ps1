@@ -25,7 +25,7 @@ $preset = "$Arch-$($Configuration.ToLowerInvariant())"
 
 Push-Location $repoRoot
 try {
-    & $cmake --preset $preset
+    & $cmake --preset $preset --fresh
     if ($LASTEXITCODE -ne 0) { throw 'CMake configure failed.' }
     & $cmake --build --preset $preset --parallel
     if ($LASTEXITCODE -ne 0) { throw 'CMake build failed.' }
@@ -53,6 +53,7 @@ if ($pdb) {
 }
 
 $dumpbin = (Get-Command dumpbin.exe -ErrorAction Stop).Source
+$compilerPath = (Get-Command cl.exe -ErrorAction Stop).Source
 $dependencies = (& $dumpbin /dependents $dll.FullName) -join "`n"
 if ($dependencies -match '(?i)avcodec|avutil|swscale') {
     throw 'The codec unexpectedly depends on shared FFmpeg DLLs.'
@@ -65,14 +66,15 @@ $buildInfo = [ordered]@{
     ffmpegCommit = Get-GitCommit (Join-Path $repoRoot 'third_party\ffmpeg')
     architecture = $Arch
     configuration = $Configuration
-    cmake = (& $cmake --version | Select-Object -First 1)
-    compiler = (& cl 2>&1 | Select-Object -First 1)
+    cmake = [string](& $cmake --version | Select-Object -First 1)
+    compiler = (Get-Item -LiteralPath $compilerPath).VersionInfo.FileVersion
     windowsSdk = $env:WindowsSDKVersion
     ffmpegConfiguration = Get-Content -LiteralPath `
-        (Join-Path $repoRoot "build\ffmpeg\$Arch\install\.iv50-ffmpeg-build.json") -Raw
+        (Join-Path $repoRoot "build\ffmpeg\$Arch\install\.iv50-ffmpeg-build.json") -Raw |
+        ConvertFrom-Json
     createdUtc = [DateTime]::UtcNow.ToString('o')
 }
-$buildInfo | ConvertTo-Json -Depth 5 | Set-Content `
+$buildInfo | ConvertTo-Json -Depth 10 | Set-Content `
     -LiteralPath (Join-Path $artifactDirectory 'build-info.json') -Encoding utf8NoBOM
 
 Write-Host "Artifacts: $artifactDirectory"
