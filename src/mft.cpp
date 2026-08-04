@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <new>
+#include <vector>
 
 static HMODULE g_module;
 static volatile long g_object_count;
@@ -191,9 +192,36 @@ public:
         UINT32 width = 0, height = 0;
         hr = MFGetAttributeSize(copy, MF_MT_FRAME_SIZE, &width, &height);
         if (FAILED(hr)) { copy->Release(); return hr; }
+        UINT32 user_data_size = 0;
+        if (SUCCEEDED(copy->GetBlobSize(MF_MT_USER_DATA, &user_data_size)) && user_data_size != 0) {
+            if (user_data_size > MAXDWORD - sizeof(BITMAPINFOHEADER)) {
+                copy->Release();
+                return MF_E_INVALIDMEDIATYPE;
+            }
+        }
+        std::vector<BYTE> input_format;
+        try {
+            input_format.resize(sizeof(BITMAPINFOHEADER) + user_data_size);
+        } catch (const std::bad_alloc &) {
+            copy->Release();
+            return E_OUTOFMEMORY;
+        }
+        auto *input_header = reinterpret_cast<BITMAPINFOHEADER *>(input_format.data());
+        ZeroMemory(input_header, sizeof(*input_header));
+        input_header->biSize = static_cast<DWORD>(input_format.size());
+        input_header->biWidth = static_cast<LONG>(width);
+        input_header->biHeight = static_cast<LONG>(height);
+        input_header->biPlanes = 1;
+        input_header->biCompression = IV50_FOURCC;
+        if (user_data_size != 0) {
+            hr = copy->GetBlob(MF_MT_USER_DATA,
+                input_format.data() + sizeof(BITMAPINFOHEADER), user_data_size, nullptr);
+            if (FAILED(hr)) { copy->Release(); return hr; }
+        }
         ResetDecoder();
         if (input_type_) input_type_->Release();
         input_type_ = copy;
+        input_format_ = std::move(input_format);
         width_ = static_cast<LONG>(width);
         height_ = static_cast<LONG>(height);
         return S_OK;
@@ -306,15 +334,14 @@ public:
         if (SUCCEEDED(hr)) hr = MFCreateSample(&out_sample);
         if (SUCCEEDED(hr)) hr = out_sample->AddBuffer(out_buffer);
         if (SUCCEEDED(hr)) {
-            BITMAPINFOHEADER input = {};
             BITMAPINFOHEADER output = {};
-            input.biSize = sizeof(input); input.biWidth = width_; input.biHeight = height_;
-            input.biPlanes = 1; input.biCompression = IV50_FOURCC; input.biSizeImage = current_length;
+            auto *input = reinterpret_cast<BITMAPINFOHEADER *>(input_format_.data());
+            input->biSizeImage = current_length;
             output.biSize = sizeof(output); output.biWidth = width_; output.biHeight = -height_;
             output.biPlanes = 1; output.biBitCount = 32; output.biCompression = BI_RGB;
             output.biSizeImage = output_size_;
             ICDECOMPRESS request = {};
-            request.lpbiInput = &input; request.lpbiOutput = &output;
+            request.lpbiInput = input; request.lpbiOutput = &output;
             request.lpInput = in_data;
             BYTE *out_data = nullptr; DWORD out_max = 0, out_current = 0;
             hr = out_buffer->Lock(&out_data, &out_max, &out_current);
@@ -360,14 +387,12 @@ private:
 
     HRESULT BeginDecoder()
     {
-        BITMAPINFOHEADER input = {};
         BITMAPINFOHEADER output = {};
-        input.biSize = sizeof(input); input.biWidth = width_; input.biHeight = height_;
-        input.biPlanes = 1; input.biCompression = IV50_FOURCC;
+        auto *input = reinterpret_cast<BITMAPINFOHEADER *>(input_format_.data());
         output.biSize = sizeof(output); output.biWidth = width_; output.biHeight = -height_;
         output.biPlanes = 1; output.biBitCount = 32; output.biCompression = BI_RGB;
         output.biSizeImage = output_size_;
-        int result = iv50_decoder_begin(decoder_, &input, &output);
+        int result = iv50_decoder_begin(decoder_, input, &output);
         begun_ = result == ICERR_OK;
         return begun_ ? S_OK : MF_E_NOTACCEPTING;
     }
@@ -385,6 +410,7 @@ private:
     IMFSample *pending_;
     LONG width_, height_;
     DWORD output_size_;
+    std::vector<BYTE> input_format_;
     BOOL begun_;
 };
 

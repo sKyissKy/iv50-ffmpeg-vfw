@@ -154,10 +154,10 @@ Copy-Item -LiteralPath $MftX64Dll -Destination $mftDestination64 -Force
 
 $regsvr32_32 = Join-Path $systemRoot 'SysWOW64\regsvr32.exe'
 $regsvr32_64 = Join-Path $systemRoot 'System32\regsvr32.exe'
-& $regsvr32_32 /s $mftDestination32
-if ($LASTEXITCODE -ne 0) { throw "x86 MFT registration failed with exit code $LASTEXITCODE." }
-& $regsvr32_64 /s $mftDestination64
-if ($LASTEXITCODE -ne 0) { throw "x64 MFT registration failed with exit code $LASTEXITCODE." }
+$registration32 = Start-Process -FilePath $regsvr32_32 -ArgumentList @('/s', $mftDestination32) -Wait -PassThru
+if ($registration32.ExitCode -ne 0) { throw "x86 MFT registration failed with exit code $($registration32.ExitCode)." }
+$registration64 = Start-Process -FilePath $regsvr32_64 -ArgumentList @('/s', $mftDestination64) -Wait -PassThru
+if ($registration64.ExitCode -ne 0) { throw "x64 MFT registration failed with exit code $($registration64.ExitCode)." }
 
 Set-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) $destination32
 Set-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) $destination64
