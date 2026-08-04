@@ -30,15 +30,16 @@ pwsh -File scripts/bootstrap.ps1
 pwsh -File scripts/build-all.ps1 -Configuration Release
 ```
 
-The Release asset named `iv50-vfw-vX.Y.Z-win-installer.zip` is the direct
-installation package. Extract it and run `install.cmd`; no repository checkout
-or manual payload copying is required.
+Release 中名为 `iv50-vfw-vX.Y.Z-win-installer.zip` 的文件是可直接安装包。
+解压后运行根目录的 `install.cmd`，不需要克隆仓库或手动复制 DLL。
 
 构建环境和可复现构建说明见 [docs/BUILDING.md](docs/BUILDING.md)。
 
 ### 安装
 
-请在管理员 PowerShell 中运行打包的 `install/install.ps1`。安装器会备份并在卸载时恢复原有的 `vidc.iv50` 映射，验证 SHA-256 和 PE 架构，并且不使用 `regsvr32`。
+解压 installer 包后运行根目录的 `install.cmd`，或在管理员 PowerShell 中运行 `install.ps1`。安装器会备份并在卸载时恢复原有的 `vidc.iv50` 映射，验证四个 DLL 的 SHA-256 和 PE 架构。VFW 映射不使用 `regsvr32`；Media Foundation MFT 则使用匹配架构的系统 `regsvr32.exe` 注册。
+
+安装器支持重复运行和部分安装：已存在且哈希、架构正确的 DLL 会跳过复制，已有正确注册的组件会跳过注册。`uninstall.cmd` 只卸载实际存在的本项目组件。
 
 默认安装位置为：
 
@@ -48,6 +49,8 @@ C:\Windows\System32\iv50_ffmpeg_vfw_x64.dll
 ```
 
 详细说明见 [docs/INSTALL.md](docs/INSTALL.md)。
+
+如需确认 Media Foundation 是否枚举到 MFT，可运行对应架构的 `mft_probe.exe`；它会输出 `MFTEnumEx` 和 `CoCreateInstance` 结果。新版 Windows 11 媒体播放器是否选择第三方 MFT 仍由其媒体管线决定。
 
 ### 架构
 
@@ -91,14 +94,23 @@ pwsh -File scripts/build-all.ps1 -Configuration Release
 ```
 
 The `iv50-vfw-vX.Y.Z-win-installer.zip` Release asset is self-contained. Extract
-it and run `install.cmd` to install the x86/x64 VFW and Media Foundation
-components.
+it and run the root-level `install.cmd` to install the x86/x64 VFW and Media
+Foundation components. No repository checkout or manual DLL copying is needed.
 
 See [docs/BUILDING.md](docs/BUILDING.md) for prerequisites and reproducible build details.
 
 ### Install
 
-Run the packaged `install/install.ps1` from an elevated PowerShell session. The installer backs up and later restores existing `vidc.iv50` mappings, verifies SHA-256 hashes and PE architectures, and does not call `regsvr32`.
+Run the root-level `install.cmd`, or run `install.ps1` from an elevated
+PowerShell session. The installer backs up and later restores existing
+`vidc.iv50` mappings, verifies all four DLLs by SHA-256 and PE architecture,
+and uses the matching system `regsvr32.exe` only for Media Foundation MFT
+registration. VFW registration uses the architecture-specific `Drivers32`
+mapping.
+
+Installation is repeatable and supports partial repair: a DLL with the expected
+hash and architecture is not copied again, and an already-correct registration
+is not repeated. `uninstall.cmd` removes only components that are present.
 
 The default installation paths are:
 
@@ -108,6 +120,10 @@ C:\Windows\System32\iv50_ffmpeg_vfw_x64.dll
 ```
 
 See [docs/INSTALL.md](docs/INSTALL.md) for details.
+
+Use `mft_probe.exe` from the matching architecture package to verify MFT
+enumeration and COM activation. A successful probe does not force every Media
+Foundation application to choose the transform.
 
 ### Architecture
 
