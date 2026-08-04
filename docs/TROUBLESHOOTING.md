@@ -29,3 +29,21 @@ FFmpeg build also requires GNU Make.
 
 Close the process named by the script. A loaded in-process codec DLL cannot be
 safely replaced or deleted.
+
+## Media Player still reports IV50 as unsupported
+
+The Windows 11 Media Player application uses a Media Foundation topology. It
+does not use the VFW `Drivers32\vidc.iv50` mapping. The repository includes
+`mft_probe.exe` to distinguish registration from application selection:
+
+```powershell
+.\mft_probe.exe
+```
+
+Successful output includes `MFTEnumEx ... count=1` with the project CLSID and
+`CoCreateInstance hr=0x00000000`. That proves both registration and COM
+activation. It does not prove that a particular Media Foundation application
+will choose the MFT for an AVI file. If the probe succeeds but Media Player
+still refuses IV50, use the VFW-compatible legacy application path or convert
+the AVI to a modern format; additional registry aliases cannot force the
+Media Player topology to select an arbitrary third-party transform.

@@ -128,8 +128,13 @@ if(BUILD_TESTING)
     add_executable(vfw_probe tests/vfw_probe/main.c)
     target_link_libraries(vfw_probe PRIVATE vfw32 winmm)
     target_compile_options(vfw_probe PRIVATE /W4 /WX /permissive- /sdl /Brepro)
+
+    add_executable(mft_probe tests/mft_probe/main.cpp)
+    target_include_directories(mft_probe PRIVATE include)
+    target_link_libraries(mft_probe PRIVATE mfplat mfuuid ole32)
+    target_compile_options(mft_probe PRIVATE /W4 /WX /permissive- /sdl /Brepro)
 endif()
 
-install(TARGETS iv50_ffmpeg_vfw iv50_ffmpeg_mft vfw_probe
+install(TARGETS iv50_ffmpeg_vfw iv50_ffmpeg_mft vfw_probe mft_probe
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION bin)
