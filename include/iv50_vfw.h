@@ -27,7 +27,11 @@ typedef struct Iv50VfwInstance {
     Iv50Decoder *decoder;
     BITMAPINFOHEADER input_format;
     BITMAPINFOHEADER output_format;
+    ICDRAWBEGIN draw_begin;
+    uint8_t *draw_buffer;
+    DWORD draw_buffer_size;
     BOOL begun;
+    BOOL draw_begun;
 } Iv50VfwInstance;
 
 BOOL iv50_is_input_format_supported(const BITMAPINFOHEADER *input);

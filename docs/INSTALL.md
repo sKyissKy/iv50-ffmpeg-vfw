@@ -11,11 +11,11 @@ checks their PE machine types before copying or changing either registry view.
 For an unpackaged development build, pass both `-ExpectedX86Sha256` and
 `-ExpectedX64Sha256` explicitly.
 
-Files are installed beneath:
+Files are installed into the Windows codec directories:
 
 ```text
-C:\Program Files\IV50 FFmpeg VFW\x86
-C:\Program Files\IV50 FFmpeg VFW\x64
+C:\Windows\SysWOW64\iv50_ffmpeg_vfw_x86.dll
+C:\Windows\System32\iv50_ffmpeg_vfw_x64.dll
 ```
 
 The installer writes a different full DLL path to the 32-bit and 64-bit views

@@ -114,7 +114,7 @@ Assert-FileHash $X64Dll $ExpectedX64Sha256
 if ((Get-PeMachine $X86Dll) -ne 0x014C) { throw 'The x86 DLL has the wrong PE machine type.' }
 if ((Get-PeMachine $X64Dll) -ne 0x8664) { throw 'The x64 DLL has the wrong PE machine type.' }
 
-$installRoot = Join-Path $env:ProgramFiles 'IV50 FFmpeg VFW'
+$systemRoot = $env:windir
 $stateRoot = Join-Path $env:ProgramData 'IV50 FFmpeg VFW'
 $backupPath = Join-Path $stateRoot 'registry-backup.json'
 New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
@@ -127,10 +127,8 @@ if (-not (Test-Path -LiteralPath $backupPath)) {
     $backup | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $backupPath -Encoding utf8NoBOM
 }
 
-$destination32 = Join-Path $installRoot 'x86\iv50_ffmpeg_vfw_x86.dll'
-$destination64 = Join-Path $installRoot 'x64\iv50_ffmpeg_vfw_x64.dll'
-New-Item -ItemType Directory -Path (Split-Path $destination32) -Force | Out-Null
-New-Item -ItemType Directory -Path (Split-Path $destination64) -Force | Out-Null
+$destination32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_vfw_x86.dll'
+$destination64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_vfw_x64.dll'
 Copy-Item -LiteralPath $X86Dll -Destination $destination32 -Force
 Copy-Item -LiteralPath $X64Dll -Destination $destination64 -Force
 

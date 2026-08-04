@@ -22,7 +22,9 @@ function Restore-CodecMapping {
     } finally { $base.Dispose() }
 }
 
-$installRoot = Join-Path $env:ProgramFiles 'IV50 FFmpeg VFW'
+$systemRoot = $env:windir
+$codec32 = Join-Path $systemRoot 'SysWOW64\iv50_ffmpeg_vfw_x86.dll'
+$codec64 = Join-Path $systemRoot 'System32\iv50_ffmpeg_vfw_x64.dll'
 $stateRoot = Join-Path $env:ProgramData 'IV50 FFmpeg VFW'
 $backupPath = Join-Path $stateRoot 'registry-backup.json'
 if (-not (Test-Path -LiteralPath $backupPath)) {
@@ -33,7 +35,8 @@ $loadedBy = @()
 foreach ($process in Get-Process -ErrorAction SilentlyContinue) {
     try {
         foreach ($module in $process.Modules) {
-            if ($module.FileName.StartsWith($installRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            if ($module.FileName.Equals($codec32, [StringComparison]::OrdinalIgnoreCase) -or
+                $module.FileName.Equals($codec64, [StringComparison]::OrdinalIgnoreCase)) {
                 $loadedBy += "$($process.ProcessName) ($($process.Id))"
             }
         }
@@ -47,8 +50,10 @@ $backup = Get-Content -LiteralPath $backupPath -Raw | ConvertFrom-Json
 Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry32) $backup.registry32
 Restore-CodecMapping ([Microsoft.Win32.RegistryView]::Registry64) $backup.registry64
 
-if (Test-Path -LiteralPath $installRoot) {
-    Remove-Item -LiteralPath $installRoot -Recurse -Force
+foreach ($codecPath in @($codec32, $codec64)) {
+    if (Test-Path -LiteralPath $codecPath) {
+        Remove-Item -LiteralPath $codecPath -Force
+    }
 }
 Remove-Item -LiteralPath $backupPath -Force
 if ((Test-Path -LiteralPath $stateRoot) -and
