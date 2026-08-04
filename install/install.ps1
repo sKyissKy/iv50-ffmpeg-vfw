@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param(
-    [string]$X86Dll = (Join-Path $PSScriptRoot 'payload\x86\iv50_ffmpeg_vfw_x86.dll'),
-    [string]$X64Dll = (Join-Path $PSScriptRoot 'payload\x64\iv50_ffmpeg_vfw_x64.dll'),
-    [string]$MftX86Dll = (Join-Path $PSScriptRoot 'payload\x86\iv50_ffmpeg_mft_x86.dll'),
-    [string]$MftX64Dll = (Join-Path $PSScriptRoot 'payload\x64\iv50_ffmpeg_mft_x64.dll'),
-    [string]$HashManifest = (Join-Path $PSScriptRoot 'SHA256SUMS.txt'),
+    [string]$X86Dll,
+    [string]$X64Dll,
+    [string]$MftX86Dll,
+    [string]$MftX64Dll,
+    [string]$HashManifest,
     [string]$ExpectedX86Sha256,
     [string]$ExpectedX64Sha256,
     [string]$ExpectedMftX86Sha256,
@@ -14,21 +14,30 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Resolve package-relative defaults after parameter binding. Windows
+# PowerShell can leave $PSScriptRoot empty while evaluating param defaults.
+if ([string]::IsNullOrWhiteSpace($X86Dll)) { $X86Dll = Join-Path $PSScriptRoot 'payload\x86\iv50_ffmpeg_vfw_x86.dll' }
+if ([string]::IsNullOrWhiteSpace($X64Dll)) { $X64Dll = Join-Path $PSScriptRoot 'payload\x64\iv50_ffmpeg_vfw_x64.dll' }
+if ([string]::IsNullOrWhiteSpace($MftX86Dll)) { $MftX86Dll = Join-Path $PSScriptRoot 'payload\x86\iv50_ffmpeg_mft_x86.dll' }
+if ([string]::IsNullOrWhiteSpace($MftX64Dll)) { $MftX64Dll = Join-Path $PSScriptRoot 'payload\x64\iv50_ffmpeg_mft_x64.dll' }
+if ([string]::IsNullOrWhiteSpace($HashManifest)) { $HashManifest = Join-Path $PSScriptRoot 'SHA256SUMS.txt' }
+
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-$principal = [Security.Principal.WindowsPrincipal]::new($identity)
+$principal = New-Object Security.Principal.WindowsPrincipal($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $hostExe = if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) { 'pwsh.exe' } else { 'powershell.exe' }
-    $arguments = @(
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"",
-        '-X86Dll', "`"$X86Dll`"", '-X64Dll', "`"$X64Dll`"",
-        '-MftX86Dll', "`"$MftX86Dll`"", '-MftX64Dll', "`"$MftX64Dll`"",
-        '-HashManifest', "`"$HashManifest`""
-    )
-    if ($ExpectedX86Sha256) { $arguments += @('-ExpectedX86Sha256', $ExpectedX86Sha256) }
-    if ($ExpectedX64Sha256) { $arguments += @('-ExpectedX64Sha256', $ExpectedX64Sha256) }
-    if ($ExpectedMftX86Sha256) { $arguments += @('-ExpectedMftX86Sha256', $ExpectedMftX86Sha256) }
-    if ($ExpectedMftX64Sha256) { $arguments += @('-ExpectedMftX64Sha256', $ExpectedMftX64Sha256) }
-    $elevated = Start-Process $hostExe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
+    $hostExe = 'powershell.exe'
+    if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) { $hostExe = 'pwsh.exe' }
+    # Use one argument string for Start-Process. This works consistently in
+    # Windows PowerShell 5.1 and PowerShell 7, including paths with spaces.
+    $arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $PSCommandPath
+    $arguments += ' -X86Dll "{0}" -X64Dll "{1}"' -f $X86Dll, $X64Dll
+    $arguments += ' -MftX86Dll "{0}" -MftX64Dll "{1}"' -f $MftX86Dll, $MftX64Dll
+    $arguments += ' -HashManifest "{0}"' -f $HashManifest
+    if ($ExpectedX86Sha256) { $arguments += ' -ExpectedX86Sha256 "{0}"' -f $ExpectedX86Sha256 }
+    if ($ExpectedX64Sha256) { $arguments += ' -ExpectedX64Sha256 "{0}"' -f $ExpectedX64Sha256 }
+    if ($ExpectedMftX86Sha256) { $arguments += ' -ExpectedMftX86Sha256 "{0}"' -f $ExpectedMftX86Sha256 }
+    if ($ExpectedMftX64Sha256) { $arguments += ' -ExpectedMftX64Sha256 "{0}"' -f $ExpectedMftX64Sha256 }
+    $elevated = Start-Process -FilePath $hostExe -Verb RunAs -ArgumentList $arguments -Wait -PassThru
     exit $elevated.ExitCode
 }
 
@@ -66,7 +75,7 @@ function Get-PeMachine {
     param([Parameter(Mandatory)][string]$Path)
     $stream = [IO.File]::OpenRead($Path)
     try {
-        $reader = [IO.BinaryReader]::new($stream)
+        $reader = New-Object IO.BinaryReader($stream)
         if ($reader.ReadUInt16() -ne 0x5A4D) { throw "$Path is not a PE file." }
         $stream.Position = 0x3C
         $peOffset = $reader.ReadUInt32()
@@ -114,7 +123,10 @@ function Get-CodecMapping {
         [Microsoft.Win32.RegistryHive]::LocalMachine, $View)
     try {
         $key = $base.OpenSubKey('SOFTWARE\Microsoft\Windows NT\CurrentVersion\Drivers32', $false)
-        try { return if ($key) { [string]$key.GetValue('vidc.iv50') } else { '' } }
+        try {
+            if ($key) { return [string]$key.GetValue('vidc.iv50') }
+            return ''
+        }
         finally { if ($key) { $key.Dispose() } }
     } finally { $base.Dispose() }
 }
@@ -139,7 +151,10 @@ function Get-MftInprocPath {
         [Microsoft.Win32.RegistryHive]::LocalMachine, $View)
     try {
         $key = $base.OpenSubKey("Software\Classes\CLSID\$Clsid\InprocServer32", $false)
-        try { return if ($key) { [string]$key.GetValue('') } else { '' } }
+        try {
+            if ($key) { return [string]$key.GetValue('') }
+            return ''
+        }
         finally { if ($key) { $key.Dispose() } }
     } finally { $base.Dispose() }
 }
@@ -194,7 +209,15 @@ if ($backupRequired -and -not (Test-Path -LiteralPath $backupPath)) {
         registry32 = Get-RegistryValueState ([Microsoft.Win32.RegistryView]::Registry32)
         registry64 = Get-RegistryValueState ([Microsoft.Win32.RegistryView]::Registry64)
     }
-    $backup | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $backupPath -Encoding utf8NoBOM
+    # Windows PowerShell 5.1 does not support the utf8NoBOM encoding name.
+    # Use UTF8 there (the BOM is valid JSON), while keeping a BOM-free file
+    # under PowerShell 7+.
+    $json = $backup | ConvertTo-Json -Depth 5
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        [IO.File]::WriteAllText($backupPath, $json, (New-Object Text.UTF8Encoding($false)))
+    } else {
+        Set-Content -LiteralPath $backupPath -Value $json -Encoding UTF8
+    }
 }
 
 $regsvr32_32 = Join-Path $systemRoot 'SysWOW64\regsvr32.exe'
